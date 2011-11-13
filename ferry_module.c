@@ -3,6 +3,7 @@
 #include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/mutex.h>
+#include <linux/proc_fs.h>
 
 MODULE_LICENSE("GPL");
 
@@ -18,8 +19,12 @@ extern long (*STUB_ferry_start)(int start_int);
 extern long (*STUB_ferry_request)(int request_int);
 extern long (*STUB_ferry_stop)(int stop_int);
 
-// Global Vars
+/* PROC declarations */
+static struct proc_dir_entry *proc_entry;
+static const char *PROC_NAME = "ferry";
+int proc_read(char *page, char **pages, off_t offset, int page_size, int *eof, void *data);
 
+// Global Vars
 struct bank {
   int queen;
   int nobles;
@@ -47,6 +52,9 @@ long my_ferry_start(int start_int)
   printk("%s: Ferry started!\n", __FUNCTION__);
 
   init_vars();	//set all of the variables in the structs to 0
+
+	//create proc entry
+	proc_entry = create_proc_entry(PROC_NAME, 0444, NULL);
 
   //begin ferry thread
   ferry_thread = kthread_run(begin_ferry, NULL, "ferry_thread");
@@ -92,13 +100,19 @@ void ferry_loop()
   //arrive at north_bank
   curr_ferry.curr_bank = 0;
   printk("%s: Ferry arrived at north bank\n", __FUNCTION__);
+
+
+
   //lock
   mutex_lock(&locker);
+
+	//update proc entry
+	if(proc_entry != NULL)
+		proc_entry->read_proc = proc_read;
 
   //release all passengers
   release_passengers();
 
-  //print_curr();
 
   //load passengers
   if(north_bank.queen == 1)
@@ -134,27 +148,22 @@ void ferry_loop()
       total_ferried++;
     }
   }
-  /*printk("%s: Ferry: Queen: %d\n", __FUNCTION__, curr_ferry.queen);
-    printk("%s: Ferry: Nobles: %d\n", __FUNCTION__, curr_ferry.nobles);
-    printk("%s: Ferry: Peasants: %d\n", __FUNCTION__, curr_ferry.peasants);*/
 
   printk("%s: **IN TRANSIT**\n", __FUNCTION__);
   msleep(2000);
 
-  //printk("%s: Releasing lock, in transit\n", __FUNCTION__);
+	//update proc entry
+	if(proc_entry != NULL)
+		proc_entry->read_proc = proc_read;
 
-  //releaseLock()
+  //releaseLock
   mutex_unlock(&locker);
+
 
 
   //NEED TO SLEEP THREAD OR SOME SHIT
   curr_ferry.curr_bank = 2; //in transit
 
-  /*while(travelling)
-    {
-    if queen appears on a bank
-    go to that bank and reload
-    }*/
   //arrive at south_bank
   printk("%s: Arrived at south bank\n", __FUNCTION__);
   curr_ferry.curr_bank = 1;
@@ -162,10 +171,12 @@ void ferry_loop()
   //lock
   mutex_lock(&locker);
 
+	//update proc entry
+	if(proc_entry != NULL)
+		proc_entry->read_proc = proc_read;
+
   //release all passengers
   release_passengers();
-
-  //print_curr();
 
   //load passengers
   if(south_bank.queen == 1)
@@ -201,17 +212,17 @@ void ferry_loop()
       total_ferried++;
     }
   }
-  /*printk("%s: Ferry: Queen: %d\n", __FUNCTION__, curr_ferry.queen);
-    printk("%s: Ferry: Nobles: %d\n", __FUNCTION__, curr_ferry.nobles);
-    printk("%s: Ferry: Peasants: %d\n", __FUNCTION__, curr_ferry.peasants);*/
 
   printk("%s: **IN TRANSIT**\n", __FUNCTION__);
   msleep(2000);
 
+	//update proc entry
+	if(proc_entry != NULL)
+		proc_entry->read_proc = proc_read;
+
   //release lock
   mutex_unlock(&locker);
 
-  //print_curr();
 }
 
 void init_vars()
@@ -229,6 +240,28 @@ void init_vars()
   curr_ferry.compartments = 0;
   curr_ferry_passengers = 0;
   total_ferried = 0;
+}
+
+int proc_read(char *page, char **pages, off_t offset, int page_size, int *eof, void *data){
+        int ret, pass_aboard;
+	char * bank;
+	if(curr_ferry.curr_bank == 0)
+		bank = "North";
+	else if(curr_ferry.curr_bank == 1)
+		bank = "South";
+	else if(curr_ferry.curr_bank == 2)
+		bank = "In Transit";
+	else
+		bank = "Unknown";
+	
+	pass_aboard = curr_ferry.queen + curr_ferry.nobles + curr_ferry.peasants;
+
+        ret = sprintf(page, 
+		"Current bank: %s\nPassengers aboard: %d\nCurrent passengers:\nQueen: %d\nNobles: %d\nPeasants: %d\nNorth bank:\nQueen: %d\nNobles: %d\nPeasants: %d\nSouth bank:\nQueen: %d\nNobles: %d\nPeasants: %d\nTotal ferried: %d\n", 
+		bank, pass_aboard, curr_ferry.queen, curr_ferry.nobles, curr_ferry.peasants, 
+		north_bank.queen, north_bank.nobles, north_bank.peasants, south_bank.queen, 
+		south_bank.nobles, south_bank.peasants, total_ferried);
+        return ret;
 }
 
 long my_ferry_request(int request_int)

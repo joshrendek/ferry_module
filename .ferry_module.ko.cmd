@@ -1,1 +1,0 @@
-cmd_/usr/src/linux-2.6.39.4/ferry/ferry_module.ko := ld -r -m elf_i386 -T /usr/src/linux-2.6.39.4/scripts/module-common.lds --build-id  -o /usr/src/linux-2.6.39.4/ferry/ferry_module.ko /usr/src/linux-2.6.39.4/ferry/ferry_module.o /usr/src/linux-2.6.39.4/ferry/ferry_module.mod.o

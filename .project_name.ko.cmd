@@ -1,1 +1,0 @@
-cmd_/usr/src/linux-2.6.39.4/ferry/project_name.ko := ld -r -m elf_i386 -T /usr/src/linux-2.6.39.4/scripts/module-common.lds --build-id  -o /usr/src/linux-2.6.39.4/ferry/project_name.ko /usr/src/linux-2.6.39.4/ferry/project_name.o /usr/src/linux-2.6.39.4/ferry/project_name.mod.o

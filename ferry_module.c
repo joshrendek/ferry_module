@@ -7,10 +7,10 @@
 MODULE_LICENSE("GPL");
 
 //Function prototypes
-void init_vars();
-void ferry_loop();
-void print_curr();
-void begin_ferry();
+void init_vars(void);
+void ferry_loop(void);
+void print_curr(void);
+void begin_ferry(void);
 
 
 /* Extern system call stub declarations */

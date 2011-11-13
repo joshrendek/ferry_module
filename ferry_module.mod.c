@@ -21,8 +21,8 @@ __attribute__((section("__versions"))) = {
 	{ 0x43d57ce, "wake_up_process" },
 	{ 0x46917606, "kthread_create_on_node" },
 	{ 0xf63f8767, "__mutex_init" },
-	{ 0x3e7e5a8f, "mutex_unlock" },
 	{ 0xf9a482f9, "msleep" },
+	{ 0x3e7e5a8f, "mutex_unlock" },
 	{ 0x61fb6b3e, "mutex_lock" },
 	{ 0x50eedeb8, "printk" },
 	{ 0x945d6ed8, "STUB_ferry_stop" },
@@ -37,4 +37,4 @@ __attribute__((section(".modinfo"))) =
 "depends=";
 
 
-MODULE_INFO(srcversion, "6451279FE54BB7F3926D455");
+MODULE_INFO(srcversion, "E592D97392713C64A85044A");

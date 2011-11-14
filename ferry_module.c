@@ -7,12 +7,19 @@
 
 MODULE_LICENSE("GPL");
 
+/* Global Vars */
+struct bank {
+    int queen;
+    int nobles;
+    int peasants;
+};
+
 /* Function prototypes */
 void init_vars(void);
 void ferry_loop(void);
 void print_curr(void);
 void begin_ferry(void);
-void process_bank(bank);
+void process_bank(struct bank bankside);
 
 /* Extern system call stub declarations */
 extern long (*STUB_ferry_start)(void);
@@ -24,12 +31,7 @@ static struct proc_dir_entry *proc_entry;
 static const char *PROC_NAME = "ferry";
 int proc_read(char *page, char **pages, off_t offset, int page_size, int *eof, void *data);
 
-/* Global Vars */
-struct bank {
-    int queen;
-    int nobles;
-    int peasants;
-};
+
 
 struct ferry {
     int queen;
@@ -124,7 +126,8 @@ void release_passengers()
     curr_ferry_passengers = 0;
 }
 
-void process_bank(bank bankside){
+void process_bank(struct bank bankside)
+{
     
     //load passengers
     if(bankside.queen == 1)

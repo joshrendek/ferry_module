@@ -19,7 +19,6 @@ void init_vars(void);
 void ferry_loop(void);
 void print_curr(void);
 void begin_ferry(void);
-void process_bank(struct bank bankside);
 
 /* Extern system call stub declarations */
 extern long (*STUB_ferry_start)(void);
@@ -28,7 +27,7 @@ extern long (*STUB_ferry_stop)(void);
 
 /* PROC declarations */
 static struct proc_dir_entry *proc_entry;
-static const char *PROC_NAME = "ferry";
+static const char *PROC_NAME = "ferry2";
 int proc_read(char *page, char **pages, off_t offset, int page_size, int *eof, void *data);
 
 
@@ -70,16 +69,16 @@ void begin_ferry()
     int i;
     set_current_state(TASK_RUNNING);
     
-    //while(stop_ferry_flag != 1)
-    //	ferry_loop();
+    while(stop_ferry_flag != 1)
+    	ferry_loop();
     
-    for(i = 15; i > 0; i--)
+    /*for(i = 15; i > 0; i--)
     {
         if(stop_ferry_flag == 1)
             break;
         else
             ferry_loop();
-    }
+    }*/
     
     printk("%s: **THREAD STOPPING**\n", __FUNCTION__);
 }
@@ -116,7 +115,6 @@ int proc_read(char *page, char **pages, off_t offset, int page_size, int *eof, v
     return ret;
 }
 
-
 void release_passengers()
 {
     curr_ferry.queen = 0;
@@ -126,92 +124,118 @@ void release_passengers()
     curr_ferry_passengers = 0;
 }
 
-void process_bank(struct bank bankside)
-{
-    
-    //load passengers
-    if(bankside.queen == 1)
-    {
-        printk("%s: Picking up north queen\n", __FUNCTION__);
-        curr_ferry.queen++;
-        bankside.queen--;
-        curr_ferry.compartments+=5;
-        curr_ferry_passengers++;
-        total_ferried++;
-    }
-    if(bankside.nobles > 0)
-    {
-        printk("%s: Picking up north nobles: %d\n", __FUNCTION__, bankside.nobles);
-        while((curr_ferry.compartments + 3) < 15 && bankside.nobles > 0)
-        {
-            curr_ferry.nobles++;
-            north_bank.nobles--;
-            curr_ferry.compartments+=3;
-            curr_ferry_passengers++;
-            total_ferried++;
-        }
-    }
-    if(bankside.peasants > 0)
-    {
-        printk("%s: Picking up north peasants: %d\n", __FUNCTION__, bankside.peasants);
-        while(curr_ferry.compartments < 15 && bankside.peasants > 0)
-        {
-            curr_ferry.peasants++;
-            bankside.peasants--;
-            curr_ferry.compartments++;
-            curr_ferry_passengers++;
-            total_ferried++;
-        }
-    }
-}
-
 void ferry_loop()
 {
-    if(proc_entry != NULL)
-        proc_entry->read_proc = proc_read;
-    //arrive at north_bank
-    curr_ferry.curr_bank = 0;
-    printk("%s: Ferry arrived at north bank\n", __FUNCTION__);
-    
-    //lock
-    mutex_lock_interruptible(&lock);
-    
-    release_passengers();
-    
-    /// BANK
-    process_bank(north_bank);
-    
-    //releaseLock()
-    mutex_unlock(&lock);
-    
-    printk("%s: **IN TRANSIT**\n", __FUNCTION__);
-    set_current_state(TASK_INTERRUPTIBLE);
-    
-    //schedule();
-    msleep(2000);
-    set_current_state(TASK_RUNNING);
-    curr_ferry.curr_bank = 2; //in transit
-    
-    
-    //arrive at south_bank
-    printk("%s: Arrived at south bank\n", __FUNCTION__);
-    curr_ferry.curr_bank = 1;
-    
-    //lock
-    mutex_lock_interruptible(&lock);
-    
-    release_passengers();
-    
-    process_bank(south_bank);
-    
-    //release lock
-    mutex_unlock(&lock);
-    
-    printk("%s: **IN TRANSIT**\n", __FUNCTION__);
-    set_current_state(TASK_INTERRUPTIBLE);
-    //schedule();
-    msleep(2000);
-    set_current_state(TASK_RUNNING);
+	if(proc_entry != NULL)
+                proc_entry->read_proc = proc_read;
+
+	//arrive at north_bank
+	curr_ferry.curr_bank = 0;
+	printk("%s: Ferry arrived at north bank\n", __FUNCTION__);
+
+	//lock
+	mutex_lock_interruptible(&lock);
+
+	release_passengers();
+
+	//load passengers
+	if(north_bank.queen == 1)
+	{
+		printk("%s: Picking up north queen\n", __FUNCTION__);
+		curr_ferry.queen++;
+		north_bank.queen--;
+		curr_ferry.compartments+=5;
+		curr_ferry_passengers++;
+		total_ferried++;
+	}
+	if(north_bank.nobles > 0)
+	{
+		printk("%s: Picking up north nobles: %d\n", __FUNCTION__, north_bank.nobles);
+		while((curr_ferry.compartments + 3) < 15 && north_bank.nobles > 0)
+		{
+			curr_ferry.nobles++;
+			north_bank.nobles--;
+			curr_ferry.compartments+=3;
+			curr_ferry_passengers++;
+			total_ferried++;
+		}
+	}
+	if(north_bank.peasants > 0)
+	{
+		printk("%s: Picking up north peasants: %d\n", __FUNCTION__, north_bank.peasants);
+		while(curr_ferry.compartments < 15 && north_bank.peasants > 0)
+		{
+			curr_ferry.peasants++;
+			north_bank.peasants--;
+			curr_ferry.compartments++;
+			curr_ferry_passengers++;
+			total_ferried++;
+		}
+	}
+
+	//releaseLock()
+	mutex_unlock(&lock);
+
+	printk("%s: **IN TRANSIT**\n", __FUNCTION__);
+	set_current_state(TASK_INTERRUPTIBLE);
+
+	//schedule();
+	msleep(2000);
+	set_current_state(TASK_RUNNING);
+	curr_ferry.curr_bank = 2; //in transit
+
+	//arrive at south_bank
+	printk("%s: Arrived at south bank\n", __FUNCTION__);
+	curr_ferry.curr_bank = 1;
+
+	//lock
+	mutex_lock_interruptible(&lock);
+
+	release_passengers();
+
+	//load passengers
+	if(south_bank.queen == 1)
+	{
+		printk("%s: Picking up south queen\n", __FUNCTION__);
+		curr_ferry.queen++;
+		south_bank.queen--;
+		curr_ferry.compartments+=5;
+		curr_ferry_passengers++;
+		total_ferried++;
+	}
+	if(south_bank.nobles > 0)
+	{
+		printk("%s: Picking up south nobles: %d\n", __FUNCTION__, south_bank.nobles);
+		while((curr_ferry.compartments + 3) <= 15 && south_bank.nobles > 0)
+		{
+			curr_ferry.nobles++;
+			south_bank.nobles--;
+			curr_ferry.compartments+=3;
+			curr_ferry_passengers++;
+			total_ferried++;
+		}
+	}
+	if(south_bank.peasants > 0)
+	{
+		printk("%s: Picking up south peasants: %d\n", __FUNCTION__, south_bank.peasants);
+		while(curr_ferry.compartments < 15 && south_bank.peasants > 0)
+		{
+			curr_ferry.peasants++;
+			south_bank.peasants--;
+			curr_ferry.compartments++;
+			curr_ferry_passengers++;
+			total_ferried++;
+		}
+	}
+
+	//release lock
+	mutex_unlock(&lock);
+
+	printk("%s: **IN TRANSIT**\n", __FUNCTION__);
+	set_current_state(TASK_INTERRUPTIBLE);
+	//schedule();
+	msleep(2000);
+	set_current_state(TASK_RUNNING);
 }
 
 void init_vars()
@@ -246,7 +270,7 @@ long my_ferry_request(int passenger_type, char start_bank)
             if(north_bank.queen == 1)
             {
                 printk("%s: Failed to issue queen request: too many queens\n", __FUNCTION__);
-                //mutex_unlock(&lock);
+                mutex_unlock(&lock);
                 return 1;
             }
             else
@@ -259,7 +283,7 @@ long my_ferry_request(int passenger_type, char start_bank)
             if(south_bank.queen == 1)
             {
                 printk("%s: Failed to issue queen request: too many queens\n", __FUNCTION__);
-                //mutex_unlock(&lock);
+                mutex_unlock(&lock);
                 return 1;
             }
             else
@@ -284,7 +308,7 @@ long my_ferry_request(int passenger_type, char start_bank)
     }
     else
     {
-        //mutex_unlock(&lock);
+        mutex_unlock(&lock);
         return 1;
     }
     

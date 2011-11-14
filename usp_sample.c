@@ -44,8 +44,39 @@ int main()
 	long ret16 = syscall(__NR_ferry_request, 0, 's');
 	long ret17 = syscall(__NR_ferry_request, 2, 's');
 	long ret18 = syscall(__NR_ferry_request, 1, 's');
+	
 
-	sleep(25);
+	sleep(2);
+	syscall(__NR_ferry_request, 1, 's');
+	sleep(3);
+	syscall(__NR_ferry_request, 0, 'n');
+	syscall(__NR_ferry_request, 1, 'n');
+	syscall(__NR_ferry_request, 1, 'n');
+	sleep(2);
+	syscall(__NR_ferry_request, 2, 's');
+	syscall(__NR_ferry_request, 0, 'n');
+	syscall(__NR_ferry_request, 0, 'n');
+	sleep(1);
+	syscall(__NR_ferry_request, 2, 's');
+	sleep(4);
+	syscall(__NR_ferry_request, 0, 'n');
+	sleep(6);
+	syscall(__NR_ferry_request, 1, 'n');
+	sleep(2);
+	syscall(__NR_ferry_request, 1, 's');
+	sleep(3);
+	syscall(__NR_ferry_request, 0, 'n');
+	sleep(2);
+	syscall(__NR_ferry_request, 2, 's');
+	sleep(1);
+	syscall(__NR_ferry_request, 2, 's');
+	sleep(4);
+	syscall(__NR_ferry_request, 0, 'n');
+	syscall(__NR_ferry_request, 2, 'n');
+	syscall(__NR_ferry_request, 2, 'n');
+	syscall(__NR_ferry_request, 2, 'n');
+	sleep(6);
+	syscall(__NR_ferry_request, 1, 'n');
 
 	long stop_ret = syscall(__NR_ferry_stop);
 	if(stop_ret==1)

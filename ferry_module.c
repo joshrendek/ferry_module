@@ -199,40 +199,8 @@ void ferry_loop()
     
     release_passengers();
     
-    //load passengers
-    if(south_bank.queen == 1)
-    {
-        printk("%s: Picking up south queen\n", __FUNCTION__);
-        curr_ferry.queen++;
-        south_bank.queen--;
-        curr_ferry.compartments+=5;
-        curr_ferry_passengers++;
-        total_ferried++;
-    }
-    if(south_bank.nobles > 0)
-    {
-        printk("%s: Picking up south nobles: %d\n", __FUNCTION__, south_bank.nobles);
-        while((curr_ferry.compartments + 3) <= 15 && south_bank.nobles > 0)
-        {
-            curr_ferry.nobles++;
-            south_bank.nobles--;
-            curr_ferry.compartments+=3;
-            curr_ferry_passengers++;
-            total_ferried++;
-        }
-    }
-    if(south_bank.peasants > 0)
-    {
-        printk("%s: Picking up south peasants: %d\n", __FUNCTION__, south_bank.peasants);
-        while(curr_ferry.compartments < 15 && south_bank.peasants > 0)
-        {
-            curr_ferry.peasants++;
-            south_bank.peasants--;
-            curr_ferry.compartments++;
-            curr_ferry_passengers++;
-            total_ferried++;
-        }
-    }
+    process_bank(south_bank);
+    
     //release lock
     mutex_unlock(&lock);
     

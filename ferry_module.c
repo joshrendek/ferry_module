@@ -1,3 +1,9 @@
+/* ---------------------------------------
+	Greg Lombardo && Josh Rendek
+       Ferry Module - Project 3
+	COP4610 - Operating Systems 
+		    Fall 2011
+--------------------------------------- */
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -97,6 +103,7 @@ int proc_read(char *page, char **pages, off_t offset, int page_size, int *eof, v
                   bank, pass_aboard, curr_ferry.queen, curr_ferry.nobles, curr_ferry.peasants, 
                   north_bank.queen, north_bank.nobles, north_bank.peasants, south_bank.queen, 
                   south_bank.nobles, south_bank.peasants, total_ferried);
+
     	return ret;
 }
 
@@ -111,9 +118,6 @@ void release_passengers()
 
 void ferry_loop()
 {
-	if(proc_entry != NULL)
-                proc_entry->read_proc = proc_read;
-
 	//arrive at north_bank
 	curr_ferry.curr_bank = 0;
 	printk("%s: Ferry arrived at north bank\n", __FUNCTION__);
@@ -121,6 +125,10 @@ void ferry_loop()
 	//lock
 	mutex_lock_interruptible(&lock);
 	printk("%s: **Locked**\n", __FUNCTION__);
+
+	//Write to proc file
+	if(proc_entry != NULL)
+                proc_entry->read_proc = proc_read;
 
 	release_passengers();
 
@@ -158,16 +166,25 @@ void ferry_loop()
 			total_ferried++;
 		}
 	}
+	//wait 2 seconds for passengers to load
+	msleep(2000);	
 
 	//releaseLock()
 	mutex_unlock(&lock);
 	printk("%s: **Unlocked**\n", __FUNCTION__);
 
+	//Set bank to transit
+	curr_ferry.curr_bank = 2;
+
+	//Write to proc file
+	if(proc_entry != NULL)
+                proc_entry->read_proc = proc_read;
+
+	//Set thread to interruptible while travelling
 	set_current_state(TASK_INTERRUPTIBLE);
 	//schedule(); why is this needed?
 	msleep(2000);
 	set_current_state(TASK_RUNNING);
-	curr_ferry.curr_bank = 2; //in transit
 
 	//arrive at south_bank
 	printk("%s: Arrived at south bank\n", __FUNCTION__);
@@ -176,6 +193,11 @@ void ferry_loop()
 	//lock
 	mutex_lock_interruptible(&lock);
 	printk("%s: **Locked**\n", __FUNCTION__);
+	
+	//Write to proc file
+	if(proc_entry != NULL)
+                proc_entry->read_proc = proc_read;
+
 	release_passengers();
 
 	//load passengers
@@ -212,11 +234,21 @@ void ferry_loop()
 			total_ferried++;
 		}
 	}
+	//wait 2 seconds for passengers to load
+	msleep(2000);	
 
 	//release lock
 	mutex_unlock(&lock);
 	printk("%s: **Unlocked**\n", __FUNCTION__);
 
+	//Set bank to transit
+	curr_ferry.curr_bank = 2;
+
+	//Write to proc file
+	if(proc_entry != NULL)
+                proc_entry->read_proc = proc_read;
+
+	//Set thread to interruptible while travelling
 	set_current_state(TASK_INTERRUPTIBLE);
 	//schedule();
 	msleep(2000);
@@ -225,6 +257,7 @@ void ferry_loop()
 
 void init_vars()
 {
+	//Initialize all variables
 	north_bank.queen = 0;
 	north_bank.nobles = 0;
 	north_bank.peasants = 0;

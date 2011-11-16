@@ -1,3 +1,9 @@
+/* ---------------------------------------
+	Greg Lombardo && Josh Rendek
+   Userspace Test Program - Project 3
+	COP4610 - Operating Systems 
+		    Fall 2011
+--------------------------------------- */
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/syscall.h>
@@ -11,11 +17,19 @@
 int main()
 {
 	//Start ferry
+	long ret0 = syscall(__NR_ferry_start);
+	if(ret0!=0)
+		perror("Ferry_start error");
+	else
+		printf("Ferry thread started\n");
+
+	/* TEST: show that it can't be started twice */
+/*
 	long ret1 = syscall(__NR_ferry_start);
 	if(ret1!=0)
 		perror("Ferry_start error");
 	else
-		printf("Ferry thread started\n");
+		printf("Ferry thread started\n");*/
 
 	//testing request
 	long ret2 = syscall(__NR_ferry_request, 2, 'n');
@@ -25,7 +39,6 @@ int main()
 		printf("Request successful\n");
 
 	//begin random requests with random wait times
-
 	syscall(__NR_ferry_request, 2, 'n');
 	sleep(3);
 	syscall(__NR_ferry_request, 0, 'n');

@@ -18,6 +18,12 @@ void init_vars(void);
 void ferry_loop(void);
 void begin_ferry(void);
 void release_passengers(void);
+void arrive_north(void);
+void arrive_south(void);
+void print_proc(void);
+void travel(void);
+void redeposit_south(void);
+void redeposit_north(void);
 
 /* Extern system call stub declarations */
 extern long (*STUB_ferry_start)(void);
@@ -50,15 +56,28 @@ struct ferry curr_ferry;
 int curr_ferry_passengers;
 int total_ferried;
 int stop_ferry_flag;
+int queen_north_flag;
+int queen_south_flag;
+int ferry_active = 0;	//0 = not active, 1 = active
 struct task_struct *ferry_thread;
 struct mutex lock;
 
 long my_ferry_start()
 {
+	//Handle if ferry gets a start request after already starting
+	if(ferry_active == 1)
+	{
+		printk("%s: Ferry has already been started\n", __FUNCTION__);		
+		return 1;
+	}
+
 	printk("%s: Ferry started!\n", __FUNCTION__);
-	//initialize mutex
-	mutex_init(&lock);		
-	init_vars();		//set all of the variables in the structs to 0
+
+	//Initialize mutex
+	mutex_init(&lock);	
+	
+	//Initialize all variables
+	init_vars();		
 
 	//Initialize proc entry
 	proc_entry = create_proc_entry(PROC_NAME, 0444, NULL);
@@ -71,9 +90,6 @@ long my_ferry_start()
 
 void begin_ferry()
 {
-	//Set thread state to running
-	set_current_state(TASK_RUNNING);
-
 	//Continue looping ferry until stopped
 	while(stop_ferry_flag != 1)
 		ferry_loop();
@@ -116,21 +132,28 @@ void release_passengers()
 	curr_ferry_passengers = 0;
 }
 
-void ferry_loop()
+void arrive_north()
 {
-	//arrive at north_bank
-	curr_ferry.curr_bank = 0;
-	printk("%s: Ferry arrived at north bank\n", __FUNCTION__);
-
 	//lock
 	mutex_lock_interruptible(&lock);
 	printk("%s: **Locked**\n", __FUNCTION__);
 
-	//Write to proc file
-	if(proc_entry != NULL)
-                proc_entry->read_proc = proc_read;
+	//arrive at north_bank
+	curr_ferry.curr_bank = 0;
+	printk("%s: Ferry arrived at north bank\n", __FUNCTION__);
+
+	print_proc();
 
 	release_passengers();
+
+	printk("%s: Passengers released, unlocking and waiting\n", __FUNCTION__);
+	//release lock
+	mutex_unlock(&lock);
+	//Wait 2 seconds for any extra passengers
+	msleep(2000);
+	//Lock again and begin loading passengers
+	mutex_lock_interruptible(&lock);
+	printk("%s: Waiting over, locked and loading passengers\n", __FUNCTION__);
 
 	//load passengers
 	if(north_bank.queen == 1)
@@ -166,39 +189,33 @@ void ferry_loop()
 			total_ferried++;
 		}
 	}
-	//wait 2 seconds for passengers to load
-	msleep(2000);	
-
 	//releaseLock()
 	mutex_unlock(&lock);
 	printk("%s: **Unlocked**\n", __FUNCTION__);
+}
 
-	//Set bank to transit
-	curr_ferry.curr_bank = 2;
-
-	//Write to proc file
-	if(proc_entry != NULL)
-                proc_entry->read_proc = proc_read;
-
-	//Set thread to interruptible while travelling
-	set_current_state(TASK_INTERRUPTIBLE);
-	//schedule(); why is this needed?
-	msleep(2000);
-	set_current_state(TASK_RUNNING);
-
-	//arrive at south_bank
-	printk("%s: Arrived at south bank\n", __FUNCTION__);
-	curr_ferry.curr_bank = 1;
-
+void arrive_south()
+{
 	//lock
 	mutex_lock_interruptible(&lock);
 	printk("%s: **Locked**\n", __FUNCTION__);
 	
-	//Write to proc file
-	if(proc_entry != NULL)
-                proc_entry->read_proc = proc_read;
+	//arrive at south_bank
+	printk("%s: Arrived at south bank\n", __FUNCTION__);
+	curr_ferry.curr_bank = 1;
+
+	print_proc();
 
 	release_passengers();
+
+	printk("%s: Passengers released, unlocking and waiting\n", __FUNCTION__);
+	//release lock
+	mutex_unlock(&lock);
+	//Wait 2 seconds for any extra passengers
+	msleep(2000);
+	//Lock again and begin loading passengers
+	mutex_lock_interruptible(&lock);
+	printk("%s: Waiting over, locked and loading passengers\n", __FUNCTION__);
 
 	//load passengers
 	if(south_bank.queen == 1)
@@ -234,25 +251,146 @@ void ferry_loop()
 			total_ferried++;
 		}
 	}
-	//wait 2 seconds for passengers to load
-	msleep(2000);	
-
 	//release lock
 	mutex_unlock(&lock);
 	printk("%s: **Unlocked**\n", __FUNCTION__);
+}
 
-	//Set bank to transit
-	curr_ferry.curr_bank = 2;
+void travel()
+{
+	printk("%s: Travelling: Watching for arriving queens\n", __FUNCTION__);
+	//WATCHING FOR QUEEN ARRIVAL
+	int n;
+	for(n = 10; n > 0; n--)
+	{
+		msleep(200);
+		if(queen_north_flag==1)
+		{
+			printk("%s: QUEEN NORTH FLAG; Going to north bank\n", __FUNCTION__);
+			break;
+			//shit hit the fan!
+		}
+		else if(queen_south_flag==1)
+		{
+			printk("%s: QUEEN SOUTH FLAG; Going to south bank\n", __FUNCTION__);
+			break;
+			//shit also hit the fan!
+		}
+	}
+}
 
+void redeposit_north()
+{
+	if(curr_ferry.queen == 1)
+	{
+		north_bank.queen++;
+		curr_ferry.queen--;
+	}
+	if(curr_ferry.nobles > 0)
+	{
+		while(curr_ferry.nobles > 0)
+		{
+			north_bank.nobles++;
+			curr_ferry.nobles--;
+		}
+	}
+	if(curr_ferry.peasants > 0)
+	{
+		while(curr_ferry.peasants > 0)
+		{
+			north_bank.peasants++;
+			curr_ferry.peasants--;
+		}
+	}
+	printk("%s: North bank passengers redeposited\n", __FUNCTION__);
+}
+
+void redeposit_south()
+{
+	if(curr_ferry.queen == 1)
+	{
+		south_bank.queen++;
+		curr_ferry.queen--;
+	}
+	if(curr_ferry.nobles > 0)
+	{
+		while(curr_ferry.nobles > 0)
+		{
+			south_bank.nobles++;
+			curr_ferry.nobles--;
+		}
+	}
+	if(curr_ferry.peasants > 0)
+	{
+		while(curr_ferry.peasants > 0)
+		{
+			south_bank.peasants++;
+			curr_ferry.peasants--;
+		}
+	}
+	printk("%s: South bank passengers redeposited\n", __FUNCTION__);
+}
+
+void ferry_loop()
+{
+	/*
+	Start, check if the south flag is checked, if so
+	we want to skip doing north and just go straight to south.
+	Once we get to south we want to check if the flag was set
+	and if so we want to redeposit passengers before we pick up again.
+
+	The same goes for the second loop, we check to see if the north flag
+	was checked, if so we want to skip the south and go straight back 
+	to north and pick up the queen there. 
+
+	If the flag is set and we return to a bank that we were travelling away
+	from, we want to re-deposit the passengers currently on the ferry back
+	onto the shore, then reload them in the correct order (queen first)
+	*/
+
+	if(queen_south_flag!=1)
+	{
+		if(queen_north_flag==1)
+		{
+			queen_north_flag=0;
+			//redeposit passengers
+			redeposit_north();
+		}
+		arrive_north();
+		//Set bank to transit
+		curr_ferry.curr_bank = 2;
+		print_proc();
+		travel();
+		//We reset the south flag as to not deposit passengers that wanted
+		//To go to south in the first place, then they get mixed up with north
+		//Passengers and go back to where they came from
+		queen_south_flag=0;
+	}
+
+	//if north has queen waiting skip south and go north
+	if(queen_north_flag!=1)
+	{
+		//if south has queen we are already here so just reset flag
+		if(queen_south_flag==1)
+		{
+			queen_south_flag=0;
+			//reposit passengers
+			redeposit_south();
+		}
+		arrive_south();
+		//Set bank to transit
+		curr_ferry.curr_bank = 2;
+		print_proc();
+		travel();
+		queen_north_flag=0;
+	}
+}
+
+void print_proc()
+{
 	//Write to proc file
 	if(proc_entry != NULL)
                 proc_entry->read_proc = proc_read;
-
-	//Set thread to interruptible while travelling
-	set_current_state(TASK_INTERRUPTIBLE);
-	//schedule();
-	msleep(2000);
-	set_current_state(TASK_RUNNING);
 }
 
 void init_vars()
@@ -272,6 +410,9 @@ void init_vars()
 	curr_ferry_passengers = 0;
 	total_ferried = 0;
 	stop_ferry_flag = 0;	//0 = keep going, 1 = stop
+	queen_north_flag = 0;
+	queen_south_flag = 0;
+	ferry_active = 1;		//setting ferry to active
 }
 
 long my_ferry_request(int passenger_type, char start_bank)
@@ -281,35 +422,42 @@ long my_ferry_request(int passenger_type, char start_bank)
     //lock
     mutex_lock_interruptible(&lock);
     
-    if(passenger_type == 0)
-    {
-        if(start_bank == 'n')
-        {
-            if(north_bank.queen == 1)
-            {
-                printk("%s: Failed to issue queen request: too many queens\n", __FUNCTION__);
-                mutex_unlock(&lock);
-                return 1;
-            }
-            else
-                north_bank.queen++;
-            //this is where we would wake up the in transit ferry and
-            //tell it to turn around and come back and get the queen
-        }
-        else if(start_bank == 's')
-        {
-            if(south_bank.queen == 1)
-            {
-                printk("%s: Failed to issue queen request: too many queens\n", __FUNCTION__);
-                mutex_unlock(&lock);
-                return 1;
-            }
-            else
-                south_bank.queen++;
-            //this is where we would wake up the in transit ferry and
-            //tell it to turn around and come back and get the queen
-        }
-    }
+	if(passenger_type == 0)
+	{
+		if(start_bank == 'n')
+		{
+			if(north_bank.queen == 1)
+			{
+				printk("%s: Too many north queens\n", __FUNCTION__);
+				mutex_unlock(&lock);
+				return 1;
+			}
+			else
+			{
+				north_bank.queen++;
+				//We don't want to flag the boat to return to a queen
+				//if the boat already has a queen on board
+				//because then the bank would have two queens
+				if(curr_ferry.queen == 0)
+					queen_north_flag=1;
+			}
+		}
+		else if(start_bank == 's')
+		{
+			if(south_bank.queen == 1)
+			{
+				printk("%s: Too many south queens\n", __FUNCTION__);
+				mutex_unlock(&lock);
+				return 1;
+			}
+			else
+			{
+				south_bank.queen++;
+				if(curr_ferry.queen == 0)
+					queen_south_flag=1;
+			}	
+		}
+	}
     else if(passenger_type == 1)
     {
         if(start_bank == 'n')
@@ -329,7 +477,6 @@ long my_ferry_request(int passenger_type, char start_bank)
         mutex_unlock(&lock);
         return 1;
     }
-    
     //release lock
     mutex_unlock(&lock);
     return 0;
@@ -345,6 +492,8 @@ long my_ferry_stop(void)
 		stop_ferry_flag = 1;	//ALL STOP!
 
 	remove_proc_entry(PROC_NAME, 0);
+
+	ferry_active = 0;
 	return ret;
 }
 
